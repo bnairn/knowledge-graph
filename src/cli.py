@@ -356,6 +356,121 @@ Confidence: {details.get('confidence', 'N/A')}
 
 
 @main.command()
+@click.argument("question")
+def ask(question: str) -> None:
+    """Ask a natural language question about your knowledge graph."""
+    from neo4j import GraphDatabase
+    from src.query.graphrag import GraphRAGQueryEngine
+
+    settings = get_settings()
+
+    console.print(f"[dim]Question: {question}[/dim]\n")
+
+    try:
+        driver = GraphDatabase.driver(
+            settings.neo4j_uri,
+            auth=(settings.neo4j_username, settings.neo4j_password),
+        )
+
+        engine = GraphRAGQueryEngine(
+            driver=driver,
+            ollama_base_url=settings.ollama_base_url,
+            llm_model=settings.ollama_model,
+            embedding_model=settings.ollama_embedding_model,
+        )
+
+        with console.status("[bold green]Thinking..."):
+            answer = engine.ask(question)
+
+        console.print(Panel(answer, title="Answer", border_style="green"))
+
+        driver.close()
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@main.command()
+@click.argument("entity1")
+@click.argument("entity2")
+def connect(entity1: str, entity2: str) -> None:
+    """Find how two entities are connected."""
+    from neo4j import GraphDatabase
+    from src.query.graphrag import GraphRAGQueryEngine
+
+    settings = get_settings()
+
+    console.print(f"[dim]Finding connections between '{entity1}' and '{entity2}'...[/dim]\n")
+
+    try:
+        driver = GraphDatabase.driver(
+            settings.neo4j_uri,
+            auth=(settings.neo4j_username, settings.neo4j_password),
+        )
+
+        engine = GraphRAGQueryEngine(
+            driver=driver,
+            ollama_base_url=settings.ollama_base_url,
+            llm_model=settings.ollama_model,
+            embedding_model=settings.ollama_embedding_model,
+        )
+
+        result = engine.find_connections(entity1, entity2)
+        console.print(result)
+
+        driver.close()
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@main.command()
+@click.option("--batch-size", "-b", default=50, help="Batch size for processing")
+def setup_embeddings(batch_size: int) -> None:
+    """Generate embeddings for all entities (required for 'ask' command)."""
+    from neo4j import GraphDatabase
+    from src.query.graphrag import GraphRAGQueryEngine
+
+    settings = get_settings()
+
+    console.print("[bold]Setting up embeddings for GraphRAG...[/bold]\n")
+    console.print(f"Using embedding model: {settings.ollama_embedding_model}")
+    console.print("[yellow]Note: First run 'ollama pull nomic-embed-text' if not installed[/yellow]\n")
+
+    try:
+        driver = GraphDatabase.driver(
+            settings.neo4j_uri,
+            auth=(settings.neo4j_username, settings.neo4j_password),
+        )
+
+        engine = GraphRAGQueryEngine(
+            driver=driver,
+            ollama_base_url=settings.ollama_base_url,
+            llm_model=settings.ollama_model,
+            embedding_model=settings.ollama_embedding_model,
+        )
+
+        # Setup vector index
+        console.print("Creating vector index...")
+        engine.setup_vector_index()
+        console.print("[green]✓[/green] Vector index ready")
+
+        # Generate embeddings
+        console.print("\nGenerating embeddings for entities...")
+        with console.status("[bold green]Processing..."):
+            count = engine.generate_embeddings_for_nodes(batch_size=batch_size)
+
+        console.print(f"[green]✓[/green] Generated embeddings for {count} entities")
+        console.print("\n[bold]You can now use 'kg ask \"your question\"' to query the graph![/bold]")
+
+        driver.close()
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise
+
+
+@main.command()
 def stats() -> None:
     """Show knowledge graph statistics."""
     from src.graph import Neo4jClient
