@@ -1,11 +1,41 @@
 """GraphRAG query interface using neo4j-graphrag."""
 
+import re
+
 import httpx
 from neo4j import Driver
 
 from config.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# Patterns that indicate aggregate/counting questions
+AGGREGATE_PATTERNS = [
+    r"\bhow many\b",
+    r"\bcount\b",
+    r"\btotal\b",
+    r"\bnumber of\b",
+    r"\bhow much\b",
+    r"\ball the\b",
+    r"\blist all\b",
+    r"\bshow all\b",
+    r"\bevery\b",
+    r"\bmost common\b",
+    r"\btop \d+\b",
+    r"\bfrequent\b",
+]
+
+# Entity type keywords mapping
+ENTITY_KEYWORDS = {
+    "Person": ["person", "people", "contact", "contacts", "who", "someone", "anyone", "names"],
+    "Organization": ["organization", "organizations", "company", "companies", "org", "orgs"],
+    "Concept": ["concept", "concepts", "technology", "technologies", "tech"],
+    "Topic": ["topic", "topics", "subject", "subjects", "theme", "themes"],
+    "Project": ["project", "projects"],
+    "Event": ["event", "events", "meeting", "meetings"],
+    "Location": ["location", "locations", "place", "places", "where"],
+    "Email": ["email", "emails", "message", "messages"],
+}
 
 
 class OllamaEmbedder:
@@ -205,6 +235,110 @@ class GraphRAGQueryEngine:
             """, query=query, limit=limit)
             return [dict(r) for r in result]
 
+    def _is_aggregate_question(self, question: str) -> bool:
+        """Check if the question is asking for counts or aggregates."""
+        q_lower = question.lower()
+        for pattern in AGGREGATE_PATTERNS:
+            if re.search(pattern, q_lower):
+                return True
+        return False
+
+    def _detect_entity_type(self, question: str) -> str | None:
+        """Detect which entity type the question is asking about."""
+        q_lower = question.lower()
+        for entity_type, keywords in ENTITY_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in q_lower:
+                    return entity_type
+        return None
+
+    def _answer_aggregate_question(self, question: str) -> str:
+        """Answer aggregate/counting questions using direct Cypher queries."""
+        q_lower = question.lower()
+        entity_type = self._detect_entity_type(question)
+
+        with self.driver.session() as session:
+            # Count questions
+            if any(re.search(p, q_lower) for p in [r"\bhow many\b", r"\bcount\b", r"\btotal\b", r"\bnumber of\b"]):
+                if entity_type:
+                    result = session.run(f"""
+                        MATCH (n:{entity_type})
+                        RETURN count(n) as count
+                    """)
+                    count = result.single()["count"]
+                    return f"There are {count} {entity_type} nodes in the knowledge graph."
+                else:
+                    # Count all entity types
+                    result = session.run("""
+                        MATCH (n)
+                        WHERE n.name IS NOT NULL
+                        WITH labels(n)[0] as type, count(*) as count
+                        RETURN type, count
+                        ORDER BY count DESC
+                    """)
+                    counts = [f"- {r['type']}: {r['count']}" for r in result]
+                    return "Entity counts in the knowledge graph:\n" + "\n".join(counts)
+
+            # List all questions
+            if any(re.search(p, q_lower) for p in [r"\ball the\b", r"\blist all\b", r"\bshow all\b", r"\bevery\b"]):
+                if entity_type:
+                    result = session.run(f"""
+                        MATCH (n:{entity_type})
+                        RETURN n.name as name
+                        ORDER BY n.name
+                        LIMIT 100
+                    """)
+                    names = [r["name"] for r in result]
+                    if len(names) == 100:
+                        return f"First 100 {entity_type} nodes (showing partial list):\n" + "\n".join(f"- {n}" for n in names)
+                    return f"All {len(names)} {entity_type} nodes:\n" + "\n".join(f"- {n}" for n in names)
+
+            # Most common/frequent questions
+            if any(re.search(p, q_lower) for p in [r"\bmost common\b", r"\btop \d+\b", r"\bfrequent\b"]):
+                # Extract limit from "top N" if present
+                limit_match = re.search(r"\btop (\d+)\b", q_lower)
+                limit = int(limit_match.group(1)) if limit_match else 10
+
+                if entity_type == "Topic" or "topic" in q_lower:
+                    result = session.run("""
+                        MATCH (t:Topic)-[:EXTRACTED_FROM]->(e:Email)
+                        RETURN t.name as topic, count(e) as email_count
+                        ORDER BY email_count DESC
+                        LIMIT $limit
+                    """, limit=limit)
+                    topics = [f"- {r['topic']}: {r['email_count']} emails" for r in result]
+                    if topics:
+                        return f"Top {limit} most discussed topics:\n" + "\n".join(topics)
+                    return "No topics with email associations found."
+
+                if entity_type == "Person" or "person" in q_lower or "contact" in q_lower:
+                    result = session.run("""
+                        MATCH (p:Person)-[:EXTRACTED_FROM]->(e:Email)
+                        RETURN p.name as person, count(e) as email_count
+                        ORDER BY email_count DESC
+                        LIMIT $limit
+                    """, limit=limit)
+                    people = [f"- {r['person']}: {r['email_count']} emails" for r in result]
+                    if people:
+                        return f"Top {limit} most mentioned people:\n" + "\n".join(people)
+                    return "No people with email associations found."
+
+                # Generic: most common entity types
+                result = session.run("""
+                    MATCH (n)-[:EXTRACTED_FROM]->(e:Email)
+                    WHERE n.name IS NOT NULL
+                    RETURN labels(n)[0] as type, n.name as name, count(e) as email_count
+                    ORDER BY email_count DESC
+                    LIMIT $limit
+                """, limit=limit)
+                items = [f"- {r['name']} ({r['type']}): {r['email_count']} emails" for r in result]
+                if items:
+                    return f"Top {limit} most mentioned entities:\n" + "\n".join(items)
+                return "No entities with email associations found."
+
+        # Fallback - didn't match any specific aggregate pattern
+        return None
+
     def get_node_context(self, name: str, depth: int = 2) -> str:
         """Get graph context around a node.
 
@@ -256,6 +390,14 @@ class GraphRAGQueryEngine:
         Returns:
             Generated answer
         """
+        # Check if this is an aggregate question (counting, listing, etc.)
+        if self._is_aggregate_question(question):
+            logger.info("detected_aggregate_question", question=question[:50])
+            aggregate_answer = self._answer_aggregate_question(question)
+            if aggregate_answer:
+                return aggregate_answer
+            # If aggregate handler didn't match, fall through to semantic search
+
         # 1. Find relevant nodes via semantic search
         similar_nodes = self.search_similar(question, limit=5)
 
