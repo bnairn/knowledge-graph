@@ -471,6 +471,62 @@ def setup_embeddings(batch_size: int) -> None:
 
 
 @main.command()
+@click.option("--dry-run", is_flag=True, help="Show what would be merged without making changes")
+def dedupe(dry_run: bool) -> None:
+    """Deduplicate entities by merging similar nodes."""
+    from neo4j import GraphDatabase
+    from src.graph.deduplication import EntityDeduplicator
+
+    settings = get_settings()
+
+    console.print("[bold]Entity Deduplication[/bold]\n")
+
+    try:
+        driver = GraphDatabase.driver(
+            settings.neo4j_uri,
+            auth=(settings.neo4j_username, settings.neo4j_password),
+        )
+
+        deduplicator = EntityDeduplicator(driver)
+
+        if dry_run:
+            console.print("[yellow]Dry run mode - showing potential duplicates:[/yellow]\n")
+            candidates = deduplicator.get_duplicate_candidates(limit=50)
+
+            if not candidates:
+                console.print("[green]No obvious duplicates found![/green]")
+            else:
+                table = Table(title="Potential Duplicates")
+                table.add_column("Name 1", style="cyan")
+                table.add_column("Name 2", style="cyan")
+                table.add_column("Match Type", style="yellow")
+
+                for c in candidates:
+                    table.add_row(c["name1"], c["name2"], c["match_type"])
+
+                console.print(table)
+                console.print(f"\n[dim]Found {len(candidates)} potential duplicates. "
+                              f"Run without --dry-run to merge them.[/dim]")
+        else:
+            console.print("Running deduplication...")
+
+            with console.status("[bold green]Merging duplicates..."):
+                results = deduplicator.run_all()
+
+            console.print(f"\n[green]✓[/green] Deduplication complete!")
+            console.print(f"  - Exact duplicates merged: {results['exact_duplicates']}")
+            console.print(f"  - Email addresses merged to people: {results['email_to_person']}")
+            console.print(f"  - Name variations merged: {results['name_variations']}")
+            console.print(f"  - [bold]Total nodes merged: {results['total']}[/bold]")
+
+        driver.close()
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise
+
+
+@main.command()
 def stats() -> None:
     """Show knowledge graph statistics."""
     from src.graph import Neo4jClient
