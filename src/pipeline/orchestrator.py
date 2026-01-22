@@ -15,34 +15,10 @@ from src.nlp.relationship_extractor import RelationshipExtractor
 from src.graph.node_manager import NodeManager
 from src.graph.relationship_manager import RelationshipManager
 
+from config.settings import get_settings
 from .sync_manager import SyncManager
 
 logger = get_logger(__name__)
-
-# Senders to skip (transactional/shopping emails)
-SKIP_SENDERS = [
-    "amazon",
-    "ups",
-    "fedex",
-    "walmart",
-    "target",
-    "costco",
-    "ebay",
-    "paypal",
-    "venmo",
-    "doordash",
-    "uber",
-    "lyft",
-    "grubhub",
-    "instacart",
-    "postmates",
-    "shipment",
-    "tracking",
-    "no-reply",
-    "noreply",
-    "do-not-reply",
-    "mailer-daemon",
-]
 
 
 def should_skip_email(from_address: str) -> bool:
@@ -54,8 +30,10 @@ def should_skip_email(from_address: str) -> bool:
     Returns:
         True if email should be skipped
     """
+    settings = get_settings()
+    skip_senders = settings.get_skip_senders_list()
     from_lower = from_address.lower()
-    return any(skip in from_lower for skip in SKIP_SENDERS)
+    return any(skip in from_lower for skip in skip_senders)
 
 
 @dataclass

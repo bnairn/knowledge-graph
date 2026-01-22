@@ -83,7 +83,7 @@ class RelationshipExtractor:
 
         # Format entities for the prompt
         entities_text = "\n".join(
-            f"- {e.name} ({e.type}): {e.description or 'No description'}"
+            f"- {e.name} ({e.type})"
             for e in entities
         )
 

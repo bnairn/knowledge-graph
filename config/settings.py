@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     # Sync
     sync_state_file: Path = Field(default=Path(".sync_state.json"))
 
+    # Email filtering - comma-separated list of sender patterns to skip
+    skip_senders: str = Field(
+        default="amazon,ups,fedex,walmart,target,costco,ebay,paypal,venmo,doordash,uber,lyft,grubhub,instacart,postmates,shipment,tracking,no-reply,noreply,do-not-reply,mailer-daemon"
+    )
+
+    def get_skip_senders_list(self) -> list[str]:
+        """Get skip senders as a list."""
+        return [s.strip().lower() for s in self.skip_senders.split(",") if s.strip()]
+
     # Logging
     log_level: str = Field(default="INFO")
     log_file: Path | None = Field(default=None)
