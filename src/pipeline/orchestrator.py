@@ -19,6 +19,44 @@ from .sync_manager import SyncManager
 
 logger = get_logger(__name__)
 
+# Senders to skip (transactional/shopping emails)
+SKIP_SENDERS = [
+    "amazon",
+    "ups",
+    "fedex",
+    "walmart",
+    "target",
+    "costco",
+    "ebay",
+    "paypal",
+    "venmo",
+    "doordash",
+    "uber",
+    "lyft",
+    "grubhub",
+    "instacart",
+    "postmates",
+    "shipment",
+    "tracking",
+    "no-reply",
+    "noreply",
+    "do-not-reply",
+    "mailer-daemon",
+]
+
+
+def should_skip_email(from_address: str) -> bool:
+    """Check if email should be skipped based on sender.
+
+    Args:
+        from_address: Email sender address
+
+    Returns:
+        True if email should be skipped
+    """
+    from_lower = from_address.lower()
+    return any(skip in from_lower for skip in SKIP_SENDERS)
+
 
 @dataclass
 class ProcessingResult:
@@ -133,6 +171,11 @@ class PipelineOrchestrator:
                     for email in self.gmail.list_items():
                         if limit and report.emails_processed >= limit:
                             break
+                        # Skip transactional emails
+                        if should_skip_email(email.from_address):
+                            logger.debug("skipping_transactional_email", from_addr=email.from_address)
+                            progress.update(gmail_task, advance=1)
+                            continue
                         result = self.process_email(email)
                         if result.success:
                             report.emails_processed += 1
@@ -228,6 +271,12 @@ class PipelineOrchestrator:
                 )
                 try:
                     for email in self.gmail.list_items(since=last_gmail_sync):
+                        # Skip transactional emails
+                        if should_skip_email(email.from_address):
+                            logger.debug("skipping_transactional_email", from_addr=email.from_address)
+                            progress.update(gmail_task, advance=1)
+                            continue
+
                         content = email.body_plain or email.snippet
                         content_hash = self.sync_manager.compute_hash(content)
 
