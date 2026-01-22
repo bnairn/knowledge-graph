@@ -411,7 +411,6 @@ class PipelineOrchestrator:
                     entity.type,
                     doc.id,
                     "document",
-                    entity.context,
                     entity.confidence,
                 )
 
@@ -521,7 +520,6 @@ Date: {email.date}
                     entity.type,
                     email.id,
                     "email",
-                    entity.context,
                     entity.confidence,
                 )
 

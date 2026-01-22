@@ -77,8 +77,8 @@ class NodeManager:
 
         params = {
             "name": entity.name,
-            "aliases": entity.aliases,
-            "description": entity.description,
+            "aliases": [],
+            "description": None,
             "confidence": entity.confidence,
         }
 
@@ -205,8 +205,8 @@ class NodeManager:
         entity_type: str,
         source_id: str,
         source_type: Literal["document", "email"],
-        context: str,
         confidence: float,
+        context: str | None = None,
     ) -> None:
         """Create EXTRACTED_FROM relationship between entity and source.
 
@@ -215,8 +215,8 @@ class NodeManager:
             entity_type: Type of the entity
             source_id: ID of the source document/email
             source_type: Type of source (document or email)
-            context: Text context where entity appears
             confidence: Extraction confidence
+            context: Optional text context where entity appears
         """
         entity_label = ENTITY_LABEL_MAP.get(entity_type, "Entity")
         source_label = "Document" if source_type == "document" else "Email"
@@ -246,7 +246,7 @@ class NodeManager:
         params = {
             "entity_name": entity_name,
             "source_id": source_id,
-            "context": context[:500],  # Limit context length
+            "context": (context[:500] if context else ""),  # Limit context length
             "confidence": confidence,
         }
 
