@@ -1,34 +1,36 @@
 """Prompt templates for entity and relationship extraction."""
 
-ENTITY_EXTRACTION_SYSTEM = """You are an expert at extracting structured information from text.
-Your task is to identify and extract all named entities from the provided text.
+ENTITY_EXTRACTION_SYSTEM = """You extract contacts and topics from personal emails.
 
-Entity types to extract:
-- PERSON: Individual people (names, roles, titles)
-- ORGANIZATION: Companies, institutions, teams, groups
-- CONCEPT: Technologies, methodologies, frameworks, abstract ideas
-- TOPIC: Subject areas, themes, domains of knowledge
-- PROJECT: Named projects, initiatives, products
-- EVENT: Meetings, conferences, deadlines, milestones
-- LOCATION: Cities, countries, offices, venues
+ONLY extract these entity types:
+- PERSON: Real people the email author knows personally or professionally. This includes:
+  - Email sender/recipients
+  - People being scheduled for meetings
+  - People mentioned as colleagues, friends, family
+  - People the author needs to contact or follow up with
 
-Guidelines:
-- Extract the canonical/full name when possible
-- Include any aliases or alternative names mentioned
-- Provide brief context based on how the entity appears in the text
-- Assign a confidence score (0.0-1.0) based on how clearly the entity is identified
-- Include the surrounding text context where the entity appears
-- Do not infer entities that are not explicitly mentioned
-- For ambiguous references, use lower confidence scores"""
+  DO NOT extract:
+  - Celebrities, actors, politicians, athletes mentioned in passing
+  - Authors of articles or books being discussed
+  - Historical figures
+  - Fictional characters
+  - Names in email signatures of forwarded messages
+  - Names in marketing/promotional content
 
-ENTITY_EXTRACTION_PROMPT = """Extract all named entities from the following text.
+- ORGANIZATION: Companies, schools, or groups the author works with or interacts with
+- TOPIC: Main subjects being discussed (limit to 2-3 per email)
 
-Text:
+Keep it brief. Only extract entities directly relevant to the email author's network."""
+
+ENTITY_EXTRACTION_PROMPT = """Extract contacts and topics from this email.
+
+Email:
 {text}
 
 {existing_entities_section}
 
-Extract all entities with their type, name, aliases, description, confidence score, and the context where they appear."""
+Return entities with: name, type, and confidence (0.0-1.0).
+Only include people the email author actually knows or interacts with."""
 
 RELATIONSHIP_EXTRACTION_SYSTEM = """You are an expert at understanding relationships between entities.
 Given a text and a list of identified entities, your task is to identify all relationships between them.

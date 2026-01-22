@@ -12,26 +12,15 @@ from .prompts import ENTITY_EXTRACTION_SYSTEM, ENTITY_EXTRACTION_PROMPT
 logger = get_logger(__name__)
 
 
-EntityType = Literal[
-    "person", "organization", "concept", "topic", "project", "event", "location"
-]
+EntityType = Literal["person", "organization", "topic"]
 
 
 class ExtractedEntity(BaseModel):
     """An entity extracted from text."""
 
-    name: str = Field(description="The canonical name of the entity")
-    type: EntityType = Field(description="The type of entity")
-    aliases: list[str] = Field(
-        default_factory=list, description="Alternative names or spellings"
-    )
-    description: str | None = Field(
-        default=None, description="Brief description based on context"
-    )
-    confidence: float = Field(
-        ge=0, le=1, description="Confidence score for the extraction"
-    )
-    context: str = Field(description="Text snippet where the entity appears")
+    name: str = Field(description="Name of the entity")
+    type: EntityType = Field(description="Type: person, organization, or topic")
+    confidence: float = Field(default=0.8, ge=0, le=1, description="Confidence 0-1")
 
 
 class EntityExtractionResult(BaseModel):
