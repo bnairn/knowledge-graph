@@ -38,15 +38,10 @@ Given a text and a list of identified entities, your task is to identify all rel
 Common relationship types:
 - WORKS_FOR: Person works for an organization
 - KNOWS: Person knows another person (colleague, friend, contact)
-- WORKS_ON: Person works on a project
-- ATTENDED: Person attended an event
-- EXPERT_IN: Person has expertise in a concept/technology
-- LOCATED_IN: Entity is located in a place
 - PARTNERED_WITH: Organization partners with another organization
-- USES: Project/Organization uses a concept/technology
 - RELATED_TO: General relationship between entities
-- OWNS: Organization owns a project
-- SUBTOPIC_OF: Topic is a subtopic of another topic
+- INTERESTED_IN: Person is interested in a topic
+- DISCUSSES: Person discusses a topic
 
 Guidelines:
 - Only identify relationships that are explicitly stated or strongly implied

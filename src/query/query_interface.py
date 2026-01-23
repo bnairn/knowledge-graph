@@ -43,8 +43,7 @@ class QueryInterface:
 
         cypher = f"""
         MATCH (e)
-        WHERE (e:Person OR e:Organization OR e:Concept OR e:Topic
-               OR e:Project OR e:Event OR e:Location)
+        WHERE (e:Person OR e:Organization OR e:Topic)
           AND (toLower(e.name) CONTAINS toLower($query)
                OR ANY(alias IN e.aliases WHERE toLower(alias) CONTAINS toLower($query)))
           {type_filter}
@@ -69,8 +68,7 @@ class QueryInterface:
         """
         cypher = """
         MATCH (e)
-        WHERE (e:Person OR e:Organization OR e:Concept OR e:Topic
-               OR e:Project OR e:Event OR e:Location)
+        WHERE (e:Person OR e:Organization OR e:Topic)
           AND (e.name = $name OR $name IN e.aliases)
         OPTIONAL MATCH (e)-[r]->(related)
         OPTIONAL MATCH (e)<-[r2]-(related2)
@@ -114,8 +112,7 @@ class QueryInterface:
         """
         cypher = f"""
         MATCH (start)
-        WHERE (start:Person OR start:Organization OR start:Concept OR start:Topic
-               OR start:Project OR start:Event OR start:Location)
+        WHERE (start:Person OR start:Organization OR start:Topic)
           AND (start.name = $name OR $name IN start.aliases)
         CALL apoc.path.subgraphAll(start, {{
             maxLevel: $depth,
@@ -128,8 +125,7 @@ class QueryInterface:
         # Fallback if APOC not available
         fallback_cypher = f"""
         MATCH (start)
-        WHERE (start:Person OR start:Organization OR start:Concept OR start:Topic
-               OR start:Project OR start:Event OR start:Location)
+        WHERE (start:Person OR start:Organization OR start:Topic)
           AND (start.name = $name OR $name IN start.aliases)
         MATCH path = (start)-[*1..{depth}]-(connected)
         WITH start, collect(DISTINCT connected) AS nodes,
@@ -193,10 +189,8 @@ class QueryInterface:
         """
         cypher = f"""
         MATCH (e1), (e2)
-        WHERE (e1:Person OR e1:Organization OR e1:Concept OR e1:Topic
-               OR e1:Project OR e1:Event OR e1:Location)
-          AND (e2:Person OR e2:Organization OR e2:Concept OR e2:Topic
-               OR e2:Project OR e2:Event OR e2:Location)
+        WHERE (e1:Person OR e1:Organization OR e1:Topic)
+          AND (e2:Person OR e2:Organization OR e2:Topic)
           AND (e1.name = $entity1 OR $entity1 IN e1.aliases)
           AND (e2.name = $entity2 OR $entity2 IN e2.aliases)
         MATCH path = shortestPath((e1)-[*1..{max_hops}]-(e2))
@@ -221,8 +215,7 @@ class QueryInterface:
         """
         cypher = """
         MATCH (e)-[r:EXTRACTED_FROM]->(source)
-        WHERE (e:Person OR e:Organization OR e:Concept OR e:Topic
-               OR e:Project OR e:Event OR e:Location)
+        WHERE (e:Person OR e:Organization OR e:Topic)
           AND (e.name = $name OR $name IN e.aliases)
         RETURN CASE
                  WHEN source:Document THEN 'document'

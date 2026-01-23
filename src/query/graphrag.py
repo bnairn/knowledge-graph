@@ -29,11 +29,7 @@ AGGREGATE_PATTERNS = [
 ENTITY_KEYWORDS = {
     "Person": ["person", "people", "contact", "contacts", "who", "someone", "anyone", "names"],
     "Organization": ["organization", "organizations", "company", "companies", "org", "orgs"],
-    "Concept": ["concept", "concepts", "technology", "technologies", "tech"],
     "Topic": ["topic", "topics", "subject", "subjects", "theme", "themes"],
-    "Project": ["project", "projects"],
-    "Event": ["event", "events", "meeting", "meetings"],
-    "Location": ["location", "locations", "place", "places", "where"],
     "Email": ["email", "emails", "message", "messages"],
 }
 
@@ -144,7 +140,7 @@ class GraphRAGQueryEngine:
         total_updated = 0
 
         # Get all entity types
-        entity_labels = ["Person", "Organization", "Concept", "Topic", "Project", "Event", "Location"]
+        entity_labels = ["Person", "Organization", "Topic"]
 
         for label in entity_labels:
             with self.driver.session() as session:

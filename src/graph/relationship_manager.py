@@ -67,12 +67,10 @@ class RelationshipManager:
         # types can't be parameterized in standard Cypher
         query = f"""
         MATCH (source)
-        WHERE (source:Person OR source:Organization OR source:Concept OR source:Topic
-               OR source:Project OR source:Event OR source:Location)
+        WHERE (source:Person OR source:Organization OR source:Topic)
           AND (source.name = $source_name OR $source_name IN source.aliases)
         MATCH (target)
-        WHERE (target:Person OR target:Organization OR target:Concept OR target:Topic
-               OR target:Project OR target:Event OR target:Location)
+        WHERE (target:Person OR target:Organization OR target:Topic)
           AND (target.name = $target_name OR $target_name IN target.aliases)
         MERGE (source)-[r:{rel_type}]->(target)
         ON CREATE SET
@@ -195,8 +193,7 @@ class RelationshipManager:
 
         query = f"""
         MATCH (e)
-        WHERE (e:Person OR e:Organization OR e:Concept OR e:Topic
-               OR e:Project OR e:Event OR e:Location)
+        WHERE (e:Person OR e:Organization OR e:Topic)
           AND (e.name = $name OR $name IN e.aliases)
         MATCH {pattern}
         RETURN type(r) AS relationship_type,

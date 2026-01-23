@@ -15,11 +15,7 @@ logger = get_logger(__name__)
 ENTITY_LABEL_MAP = {
     "person": "Person",
     "organization": "Organization",
-    "concept": "Concept",
     "topic": "Topic",
-    "project": "Project",
-    "event": "Event",
-    "location": "Location",
 }
 
 
@@ -282,8 +278,7 @@ class NodeManager:
         else:
             query = """
             MATCH (e)
-            WHERE (e:Person OR e:Organization OR e:Concept OR e:Topic
-                   OR e:Project OR e:Event OR e:Location)
+            WHERE (e:Person OR e:Organization OR e:Topic)
               AND (e.name = $name OR $name IN e.aliases)
             RETURN e
             LIMIT 1
@@ -300,8 +295,7 @@ class NodeManager:
         """
         query = """
         MATCH (e)
-        WHERE e:Person OR e:Organization OR e:Concept OR e:Topic
-              OR e:Project OR e:Event OR e:Location
+        WHERE e:Person OR e:Organization OR e:Topic
         RETURN DISTINCT e.name AS name
         """
 
