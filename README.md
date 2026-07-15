@@ -77,9 +77,11 @@ Access Neo4j Browser at http://localhost:7474
    ```
 
 4. **Configure environment**:
+   Secrets live in 1Password (item: `Private / Knowledge Graph neo4j - env`) and are
+   loaded at runtime via `op run --env-file=.env.op` — `.env.op` holds only `op://`
+   references, no plaintext. Requires the 1Password CLI signed in. Run commands as:
    ```bash
-   cp .env.example .env
-   # Edit .env with your settings
+   op run --env-file=.env.op -- kg <command>   # e.g. kg auth, kg sync
    ```
 
 5. **Set up Google OAuth**:
